@@ -1,9 +1,9 @@
 SublimeLinter-contrib-julialintserver
 ================================
 
-[![Build Status](https://travis-ci.org/Invenia/SublimeLinter-contrib-julialintserver.svg?branch=master)](https://travis-ci.org/Invenia/SublimeLinter-contrib-julialintserver)
+[![Build Status](https://travis-ci.org/invenia/SublimeLinter-contrib-julialintserver.svg?branch=master)](https://travis-ci.org/invenia/SublimeLinter-contrib-julialintserver)
 
-This linter plugin for [SublimeLinter][docs] provides an interface to [julialintserver](https://github.com/invenia/SublimeLinter-contrib-julialintserver.jl). It will be used with files that have the “julia” syntax.
+This linter plugin for [SublimeLinter][docs] provides an interface to [`Lint.jl`](https://github.com/tonyhffong/Lint.jl) `lintserver`. It will be used with files that have the “julia” syntax.
 
 ## Installation
 SublimeLinter 3 must be installed in order to use this plugin. If SublimeLinter 3 is not installed, please follow the instructions [here][installation].
