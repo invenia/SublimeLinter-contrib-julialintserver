@@ -50,7 +50,6 @@ def call_server(message, address, port):
 
 
 class Julialintserver(Linter):
-
     """Provides an interface to julialintserver."""
 
     syntax = 'julia'
