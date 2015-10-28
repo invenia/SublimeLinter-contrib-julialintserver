@@ -18,13 +18,12 @@ In order for this plugin to be functional you must have a `Julia Lintserver` run
    Pkg.add( "Lint" )
    ```
 
-1. Launch and keep running a `lintsever`.  This plugin's default port is `2222`.
-   ```Julia
-   using Lint
-   lintserver(2222)
-   ```
+1. ~~Launch and keep running a `lintsever`.  This plugin's default port is `2222`.~~
+The plugin will automatically launch a julia lintserver.
 
-**Note:** This plugin requires `Julia Lintserver` version `0.0.0` or later.
+**Note:**  The first lint will take ~30 seconds because the server has to compile the lint methods.
+
+**Note:** This plugin requires `Julia Lint` version `0.0.0` or later.
 
 ### Linter configuration
 
@@ -45,8 +44,9 @@ For general information on how SublimeLinter works with settings, please see [Se
 |Setting|Description|Default|
 |:------|:----------|:------------:|
 |show_info_warnings|Show INFO Warnings.|false
-|server_address|Server Address.|"localhost"
+|automatically_start_server|Launch lintserver on server_port.|true
 |server_port|Server Port.|2222
+|server_address|Server Address.|"localhost"
 
 ## Contributing
 If you would like to contribute enhancements or fixes, please do the following:
