@@ -13,52 +13,40 @@
 import subprocess
 import os
 import re
-import tempfile
 import time
+import socket
 
 from SublimeLinter.lint import Linter, util, persist
 
 
-def open_tmpfile(filename, suffix, code):
-    """Open and return a tempfile with the code in it. Remember to close this file."""
-    if not filename:
-        basename = util.UNSAVED_FILENAME
-        dirname = util.tempdir
-    else:
-        dirname, basename = os.path.split(filename)
-
-    if suffix:
-        basename = os.path.splitext(basename)[0] + suffix
-
-    f = tempfile.NamedTemporaryFile(dir=dirname, suffix=basename)
-    try:
-        if isinstance(code, str):
-            code = code.encode('utf-8')
-
-            f.write(code)
-            f.flush()
-    except:
-        f.close()
-
-    return f
-
-
-def call_server(message, address, port, timeout=2, sleep=2):
+def call_server(path, code, address, port, timeout=60):
     """Pass message to a juliaLint server at given address and port and return the response."""
-    command = ('(echo {}; sleep {}) | nc -w {} {} {}'.format(message, sleep, timeout, address, port))
-    return subprocess.check_output(command, shell=True).decode("utf-8")
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    s.connect((address, port))
+    s.sendall(bytes(path, 'UTF-8'))
+    s.sendall(b"\n")
+    s.sendall(bytes(str(len(code)), 'UTF-8'))
+    s.sendall(b"\n")
+    s.sendall(bytes(code, 'UTF-8'))
+    s.sendall(b"\n")
+    response = s.recv(4096).decode("utf-8")
+    while response[-2:] not in ('\n\n', '\n'):
+        response += s.recv(4096).decode("utf-8")
+    s.close()
+    return response
 
 
-def launch_local_server(port):
-    """launch a julia lintserver."""
-    serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lint/runjuliaserver.py')
+def launch_julialintserver(port):
+    """Run the julia lintserver script."""
+    serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lint/runjulialintserver.py')
     cmd = ['python3', serverscript, str(port)]
     proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, env=util.create_environment())
     return proc
 
 
 class Julialintserver(Linter):
-    """Provides an interface to julialintserver."""
+    """Provides an interface to julia lintserver."""
 
     syntax = 'julia'
     cmd = None
@@ -106,60 +94,53 @@ class Julialintserver(Linter):
         'show_info_warnings': False,
         'server_address': 'localhost',
         'server_port': 2222,
-        'automatically_start_server': True
+        'automatically_start_server': True,
+        'timeout': 30,
     }
     inline_settings = None
     inline_overrides = None
     comment_re = None
 
-    proc = None
+    Julialintserver_proc = None
 
     def run(self, cmd, code):
         """Override the run function. Returns a string containing the julia lintserver's output."""
         self.set_regex()
-
+        # Get user settings
         settings = self.get_merged_settings()
         address = settings['server_address']
         port = settings['server_port']
         autostart = settings['automatically_start_server']
+        timeout = settings['timeout']
 
-        output = "An unknown error has occured when trying to connect to server."
-
-        f = open_tmpfile(self.filename, self.get_tempfile_suffix(), code)
+        output = ""
         try:
-            persist.debug("Calling sever({}, {}) with file".format(address, port))
-            output = call_server(f.name, address, port)
+            persist.debug("Connecting to julia lintsever({}, {})".format(address, port))
+            output = call_server(self.filename, code, address, port, timeout=timeout)
         except Exception as e:
-            persist.debug("Calling sever failed: {}".format(e))
-            if self.proc is not None:
-                if self.proc.poll() is not None:
-                    raise subprocess.SubprocessError(self.proc.returncode())
+            persist.debug("Sever connection unsuccessful: {}".format(e))
+            if self.Julialintserver_proc is not None:
+                if self.Julialintserver_proc.poll() is not None:
+                    raise subprocess.SubprocessError(self.Julialintserver_proc.returncode)
                 else:
-                    output = "Local Julia lintserver was started."
+                    persist.debug("Local Julia lintserver was started.")
             elif autostart:
                 persist.printf("Launching julia lintserver on localhost port {}".format(port))
 
-                self.proc = launch_local_server(port)
+                self.Julialintserver_proc = launch_julialintserver(port)
+                # Set address to localhost for new julia lintserver
                 address = 'localhost'
 
-                persist.printf(
-                    "julia lintserver starting up, server will be operational in about 30 seconds".format(self.proc.pid)
-                )
+                persist.printf("julia lintserver starting up, server will be operational in approximately 30 seconds")
                 try:
                     # Let julia launch
                     time.sleep(5)
-                    # Run once with high timeout to make julia compile all appropriate function
-                    call_server(f.name, address, port, timeout=60)
-                    time.sleep(5)
-                    # Lint file
-                    output = call_server(f.name, address, port)
-                except:
-                    persist.debug("Local Julia lintserver failed to start properly.")
-                    output = "Local Julia lintserver failed to start properly."
+                    # Run once with high timeout to let julia compile all appropriate functions
+                    output = call_server(self.filename, code, address, port, timeout=timeout+60)
+                    persist.printf("julia lintserver now operational")
+                except Exception as e:
+                    persist.printf("julia lintserver failed to start properly.")
             else:
-                persist.debug("Failed to connect to julia lintserver. automatically_start_server is currently false.")
-                output = "Failed to connect to julia lintserver. automatically_start_server is currently false."
-        finally:
-            f.close()
+                persist.debug("Automatically_start_server is currently false.")
 
         return output
