@@ -26,9 +26,10 @@ def call_server(path, code, address, port, timeout=60):
     s.connect((address, port))
     s.sendall(bytes(path, 'UTF-8'))
     s.sendall(b"\n")
-    s.sendall(bytes(str(len(code)), 'UTF-8'))
+    code_bytes = bytes(code, 'UTF-8')
+    s.sendall(bytes(str(len(code_bytes)), 'UTF-8'))
     s.sendall(b"\n")
-    s.sendall(bytes(code, 'UTF-8'))
+    s.sendall(code_bytes)
     s.sendall(b"\n")
     response = s.recv(4096).decode("utf-8")
     while response[-2:] not in ('\n\n', '\n'):
