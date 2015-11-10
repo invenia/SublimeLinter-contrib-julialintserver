@@ -24,14 +24,19 @@ def call_server(path, code, address, port, timeout=60):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(timeout)
     s.connect((address, port))
+    # Send path so server can check for dependencies
     s.sendall(bytes(path, 'UTF-8'))
     s.sendall(b"\n")
     code_bytes = bytes(code, 'UTF-8')
+    # Send number of bytes in code so server knows how much to receive
     s.sendall(bytes(str(len(code_bytes)), 'UTF-8'))
     s.sendall(b"\n")
+    # Send the actual code
     s.sendall(code_bytes)
     s.sendall(b"\n")
+    # Receive messages. Lint Server sends a empty newline when there are no more messages
     response = s.recv(4096).decode("utf-8")
+    # Look at the last 2 chars; 2 newlines is an empty line or if only a single char was receive and is a newline
     while response[-2:] not in ('\n\n', '\n'):
         response += s.recv(4096).decode("utf-8")
     s.close()
