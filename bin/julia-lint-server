@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """
 Launch a Julia lintserver and when this process becomes an orphan it
 will suicide and kill the server.
@@ -15,7 +15,6 @@ def handler(signum, frame):
     """Kill proc the sys.exit."""
     if proc:
         proc.kill()
-    # Raises SystemExit(0):
     sys.exit(0)
 
 signal.signal(signal.SIGTERM, handler)
@@ -29,9 +28,9 @@ port = args[1]
 
 parent = os.getppid()
 
-cmd = 'julia -e "using Lint; lintserver({})"'.format(port)
+cmd = ['julia', '-e', 'using Lint; lintserver({})'.format(port)]
 
-proc = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE, env=os.environ)
+proc = subprocess.Popen(cmd)
 while os.getppid() == parent and proc.poll() is None:
-    sleep(2)
+    sleep(5)
 proc.kill()

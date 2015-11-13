@@ -44,7 +44,13 @@ def call_server(path, code, address, port, timeout=60):
 def launch_julialintserver(port):
     """Run the julia lintserver script."""
     serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'bin', 'julia-lint-server')
-    cmd = ['python3', serverscript, str(port)]
+    cmd = [serverscript, str(port)]
+
+    # Spawn a intermediate subprocess which will automatically shutdown
+    # the server. Only necessary since there appears to be no way to
+    # handle a sublime exit event (neither signals, atexit, or sublime
+    # provide a way to do this)
+    # https://github.com/SublimeTextIssues/Core/issues/10
     proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, env=util.create_environment())
     return proc
 
@@ -105,7 +111,7 @@ class Julialintserver(Linter):
     inline_overrides = None
     comment_re = None
 
-    Julialintserver_proc = None
+    julia_proc = None
 
     def run(self, cmd, code):
         """Override the run function. Returns a string containing the julia lintserver's output."""
@@ -123,15 +129,15 @@ class Julialintserver(Linter):
             output = call_server(self.filename, code, address, port, timeout=timeout)
         except Exception as e:
             persist.debug("Sever connection unsuccessful: {}".format(e))
-            if self.Julialintserver_proc is not None:
-                if self.Julialintserver_proc.poll() is not None:
-                    raise subprocess.SubprocessError(self.Julialintserver_proc.returncode)
+            if self.julia_proc is not None:
+                if self.julia_proc.poll() is not None:
+                    raise subprocess.SubprocessError(self.julia_proc.returncode)
                 else:
                     persist.debug("Local Julia lintserver was started.")
             elif autostart:
                 persist.printf("Launching julia lintserver on localhost port {}".format(port))
 
-                self.Julialintserver_proc = launch_julialintserver(port)
+                self.julia_proc = launch_julialintserver(port)
                 # Set address to localhost for new julia lintserver
                 address = 'localhost'
 
