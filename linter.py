@@ -43,7 +43,7 @@ def call_server(path, code, address, port, timeout=60):
 
 def launch_julialintserver(port):
     """Run the julia lintserver script."""
-    serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lint/runjulialintserver.py')
+    serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'bin', 'julia-lint-server')
     cmd = ['python3', serverscript, str(port)]
     proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, env=util.create_environment())
     return proc
