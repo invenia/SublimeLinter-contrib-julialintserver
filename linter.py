@@ -72,7 +72,10 @@ class JuliaLintServer(object):
         if self.proc is not None:
             return
 
-        cmd = [os.path.join(PKG_DIR, 'bin', 'julia-lint-server'), str(self.port)]
+        cmd = [
+            os.path.join(PKG_DIR, 'bin', 'julia-lint-server'),
+            str(self.port),
+        ]
 
         # Note: We'll spawn a intermediate subprocess which will
         # automatically shutdown the server. This extra process is only
@@ -80,12 +83,16 @@ class JuliaLintServer(object):
         # exit event (neither signals, atexit, or sublime provide a way
         # to do this)
         # https://github.com/SublimeTextIssues/Core/issues/10
-        self.proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, env=util.create_environment())
+        self.proc = subprocess.Popen(
+            cmd,
+            stderr=subprocess.STDOUT,
+            env=util.create_environment(),
+        )
 
     def lint(self, path, content):
         output = ""
         try:
-            persist.debug("Connecting to Julia lint server ({}, {})".format(self.address, self.port))
+            persist.debug("Connecting to Julia lint server ({}, {})".format(self.address, self.port))  # noqa
             output = self._lint(path, content)
         except Exception as e:
             persist.debug(e)
@@ -98,12 +105,12 @@ class JuliaLintServer(object):
                 #         persist.debug("Local Julia lint server was started")
                 #         return
                 #     else:
-                #         raise subprocess.SubprocessError(self.proc.returncode)
+                #        raise subprocess.SubprocessError(self.proc.returncode)
 
-                persist.printf("Launching Julia lint server on localhost port {}".format(self.port))
+                persist.printf("Launching Julia lint server on localhost port {}".format(self.port))  # noqa
                 self.start()
 
-                persist.printf("Julia lint server starting up, server will be operational shortly")
+                persist.printf("Julia lint server starting up, server will be operational shortly")  # noqa
                 try:
                     # Wait to give Julia time to start
                     sleep(5)
@@ -187,5 +194,8 @@ class Julia(Linter):
         )
 
     def run(self, cmd, code):
-        """Override the run function. Returns a string containing the julia lintserver's output."""
+        """
+        Override the run function. Returns a string containing the julia
+        lintserver's output.
+        """
         return self.server.lint(self.filename, code)
