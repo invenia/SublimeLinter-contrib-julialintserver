@@ -22,13 +22,12 @@ PKG_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 class JuliaLintServer(object):
-    """
-    Singleton class that handles communication with the actual lint
-    server
-    """
+    """Singleton class that handles communication with the actual lint server."""
+
     __instance = None
 
     def __new__(cls, address, port, auto_start=True, timeout=60):
+        """Constructor."""
         if JuliaLintServer.__instance is None:
             JuliaLintServer.__instance = object.__new__(cls)
             JuliaLintServer.__instance.proc = None
@@ -41,7 +40,7 @@ class JuliaLintServer(object):
         return JuliaLintServer.__instance
 
     def _lint(self, path, content):
-        """Lints the content of a file"""
+        """Send lint request to server."""
         # First convert the content into bytes so we can get an accurate count
         content = bytes(content, "UTF-8")
 
@@ -68,7 +67,7 @@ class JuliaLintServer(object):
         return response
 
     def start(self):
-        """Start a Julia Lint server on the localhost"""
+        """Start a Julia Lint server on the localhost."""
         if self.proc is not None:
             return
 
@@ -90,6 +89,7 @@ class JuliaLintServer(object):
         )
 
     def lint(self, path, content):
+        """Lint the content of a file."""
         output = ""
         try:
             persist.debug("Connecting to Julia lint server ({}, {})".format(self.address, self.port))  # noqa
@@ -126,7 +126,7 @@ class JuliaLintServer(object):
 
 
 class Julia(Linter):
-    """Provides an interface to Julia lint server."""
+    """Provides an interface to Julia lintserver."""
 
     syntax = 'julia'
     cmd = None
@@ -156,6 +156,7 @@ class Julia(Linter):
 
     @classmethod
     def initialize(cls):
+        """Initialize."""
         persist.printf(cls)
         super().initialize()
         settings = cls.settings()
@@ -194,8 +195,5 @@ class Julia(Linter):
         )
 
     def run(self, cmd, code):
-        """
-        Override the run function. Returns a string containing the julia
-        lintserver's output.
-        """
+        """Override the run function. Returns a string containing the output."""
         return self.server.lint(self.filename, code)
