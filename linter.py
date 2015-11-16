@@ -21,23 +21,23 @@ from SublimeLinter.lint import Linter, util, persist
 PKG_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-class JuliaLintServer(object):
+class JuliaLintServerDaemon(object):
     """Singleton class that handles communication with the actual lint server."""
 
     __instance = None
 
     def __new__(cls, address, port, auto_start=True, timeout=60):
         """Constructor."""
-        if JuliaLintServer.__instance is None:
-            JuliaLintServer.__instance = object.__new__(cls)
-            JuliaLintServer.__instance.proc = None
+        if JuliaLintServerDaemon.__instance is None:
+            JuliaLintServerDaemon.__instance = object.__new__(cls)
+            JuliaLintServerDaemon.__instance.proc = None
 
-        JuliaLintServer.__instance.address = address
-        JuliaLintServer.__instance.port = port
-        JuliaLintServer.__instance.auto_start = auto_start
-        JuliaLintServer.__instance.timeout = timeout
+        JuliaLintServerDaemon.__instance.address = address
+        JuliaLintServerDaemon.__instance.port = port
+        JuliaLintServerDaemon.__instance.auto_start = auto_start
+        JuliaLintServerDaemon.__instance.timeout = timeout
 
-        return JuliaLintServer.__instance
+        return JuliaLintServerDaemon.__instance
 
     def _lint(self, path, content):
         """Send lint request to server."""
@@ -125,7 +125,7 @@ class JuliaLintServer(object):
         return output
 
 
-class Julia(Linter):
+class JuliaLintServer(Linter):
     """Provides an interface to Julia lintserver."""
 
     syntax = 'julia'
@@ -162,7 +162,7 @@ class Julia(Linter):
         settings = cls.settings()
 
         # Server will a
-        cls.server = JuliaLintServer(
+        cls.server = JuliaLintServerDaemon(
             settings['server_address'],
             settings['server_port'],
             settings['automatically_start_server'],
