@@ -39,7 +39,7 @@ class JuliaLintServerDaemon(object):
 
         return JuliaLintServerDaemon.__instance
 
-    def _lint(self, path, content):
+    def _lint(self, path, content, file_messages_only=True):
         """Send lint request to server."""
         # First convert the content into bytes so we can get an accurate count
         content = bytes(content, "UTF-8")
@@ -63,6 +63,15 @@ class JuliaLintServerDaemon(object):
         while response[-2:] not in ('\n\n', '\n'):
             response += s.recv(4096).decode("UTF-8")
         s.close()
+
+        # Only return the warnings in the linted file
+        if(file_messages_only):
+            # persist.debug("All messages for {}:\n{}".format(path, response.strip()))
+            file_messages = ""
+            for line in response.splitlines():
+                if re.match(r'^{}.*$'.format(re.escape(path)), line):
+                    file_messages += line + '\n'
+            response = file_messages
 
         return response
 
