@@ -13,52 +13,129 @@
 import subprocess
 import os
 import re
-import tempfile
-import time
+import socket
 
+from time import sleep
 from SublimeLinter.lint import Linter, util, persist
 
-
-def open_tmpfile(filename, suffix, code):
-    """Open and return a tempfile with the code in it. Remember to close this file."""
-    if not filename:
-        basename = util.UNSAVED_FILENAME
-        dirname = util.tempdir
-    else:
-        dirname, basename = os.path.split(filename)
-
-    if suffix:
-        basename = os.path.splitext(basename)[0] + suffix
-
-    f = tempfile.NamedTemporaryFile(dir=dirname, suffix=basename)
-    try:
-        if isinstance(code, str):
-            code = code.encode('utf-8')
-
-            f.write(code)
-            f.flush()
-    except:
-        f.close()
-
-    return f
+PKG_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
-def call_server(message, address, port, timeout=2, sleep=2):
-    """Pass message to a juliaLint server at given address and port and return the response."""
-    command = ('(echo {}; sleep {}) | nc -w {} {} {}'.format(message, sleep, timeout, address, port))
-    return subprocess.check_output(command, shell=True).decode("utf-8")
+class JuliaLintServerDaemon(object):
+    """Singleton class that handles communication with the actual lint server."""
+
+    __instance = None
+
+    def __new__(cls, address, port, auto_start=True, timeout=60):
+        """Constructor."""
+        if JuliaLintServerDaemon.__instance is None:
+            JuliaLintServerDaemon.__instance = object.__new__(cls)
+            JuliaLintServerDaemon.__instance.proc = None
+
+        JuliaLintServerDaemon.__instance.address = address
+        JuliaLintServerDaemon.__instance.port = port
+        JuliaLintServerDaemon.__instance.auto_start = auto_start
+        JuliaLintServerDaemon.__instance.timeout = timeout
+
+        return JuliaLintServerDaemon.__instance
+
+    def _lint(self, path, content, file_messages_only=True):
+        """Send lint request to server."""
+        # First convert the content into bytes so we can get an accurate count
+        content = bytes(content, "UTF-8")
+
+        # Format the message to send to the server. Including the length
+        # of the content so the server knows where the content ends.
+        # Note: Path is included so server can check for dependencies
+        message = b"\n".join([
+            bytes(path, "UTF-8"),
+            bytes(str(len(content)), "UTF-8"),
+            content,
+        ])
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(self.timeout)
+        s.connect((self.address, self.port))
+        s.sendall(message)
+
+        # TODO: Probably would be best to return a stream
+        response = s.recv(4096).decode("UTF-8")
+        while response[-2:] not in ('\n\n', '\n'):
+            response += s.recv(4096).decode("UTF-8")
+        s.close()
+
+        # Only return the warnings in the linted file
+        if(file_messages_only):
+            # persist.debug("All messages for {}:\n{}".format(path, response.strip()))
+            file_messages = ""
+            for line in response.splitlines():
+                if re.match(r'^{}.*$'.format(re.escape(path)), line):
+                    file_messages += line + '\n'
+            response = file_messages
+
+        return response
+
+    def start(self):
+        """Start a Julia Lint server on the localhost."""
+        if self.proc is not None:
+            return
+
+        cmd = [
+            os.path.join(PKG_DIR, 'bin', 'julia-lint-server'),
+            str(self.port),
+        ]
+
+        # Note: We'll spawn a intermediate subprocess which will
+        # automatically shutdown the server. This extra process is only
+        # necessary since there appears to be no way to handle a sublime
+        # exit event (neither signals, atexit, or sublime provide a way
+        # to do this)
+        # https://github.com/SublimeTextIssues/Core/issues/10
+        self.proc = subprocess.Popen(
+            cmd,
+            stderr=subprocess.STDOUT,
+            env=util.create_environment(),
+        )
+
+    def lint(self, path, content):
+        """Lint the content of a file."""
+        output = ""
+        try:
+            persist.debug("Connecting to Julia lint server ({}, {})".format(self.address, self.port))  # noqa
+            output = self._lint(path, content)
+        except Exception as e:
+            persist.debug(e)
+
+            if not self.auto_start:
+                persist.printf("Julia lint server is not running")
+            else:
+                # if self.proc is not None:
+                #     if self.proc.poll() is None:
+                #         persist.debug("Local Julia lint server was started")
+                #         return
+                #     else:
+                #        raise subprocess.SubprocessError(self.proc.returncode)
+
+                persist.printf("Launching Julia lint server on localhost port {}".format(self.port))  # noqa
+                self.start()
+
+                persist.printf("Julia lint server starting up, server will be operational shortly")  # noqa
+                try:
+                    # Wait to give Julia time to start
+                    sleep(5)
+
+                    output = self._lint(path, content)
+                except Exception as e:
+                    persist.debug(e)
+                    persist.printf("Julia lint server failed to start")
+                else:
+                    persist.printf("Julia lint server now operational")
+
+        return output
 
 
-def launch_local_server(port):
-    """launch a julia lintserver."""
-    serverscript = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'lint/runjuliaserver.py')
-    cmd = ['python3', serverscript, str(port)]
-    proc = subprocess.Popen(cmd, stderr=subprocess.STDOUT, env=util.create_environment())
-    return proc
-
-
-class Julialintserver(Linter):
-    """Provides an interface to julialintserver."""
+class JuliaLintServer(Linter):
+    """Provides an interface to Julia lintserver."""
 
     syntax = 'julia'
     cmd = None
@@ -66,16 +143,47 @@ class Julialintserver(Linter):
     version_args = None
     version_re = None
     version_requirement = None
-    regex = r''
+    multiline = False
+    line_col_base = (1, 1)
+    tempfile_suffix = 'jl'
+    error_stream = util.STREAM_BOTH
+    selectors = {}
+    word_re = None
+    defaults = {
+        'show_info_warnings': False,
+        'server_address': 'localhost',
+        'server_port': 2222,
+        'automatically_start_server': True,
+        'timeout': 30,
+    }
+    inline_settings = None
+    inline_overrides = None
+    comment_re = None
 
-    def set_regex(self):
-        """Set the regex variable. We want a different regex depending on wether or not show_info_warnings is set."""
-        settings = self.get_merged_settings()
+    regex = r''
+    server = None
+
+    @classmethod
+    def initialize(cls):
+        """Initialize."""
+        persist.printf(cls)
+        super().initialize()
+        settings = cls.settings()
+
+        # Server will a
+        cls.server = JuliaLintServerDaemon(
+            settings['server_address'],
+            settings['server_port'],
+            settings['automatically_start_server'],
+            settings['timeout'],
+        )
+
         warn_levels = ['WARN']
         if settings['show_info_warnings']:
             warn_levels.append('INFO')
 
-        regex = re.compile(
+        # Set the regex based upon whether or not show_info_warnings is set
+        cls.regex = re.compile(
             r"""
             ^(?P<filename>.+?\.jl):(?P<line>\d+)
             \s+
@@ -94,72 +202,7 @@ class Julialintserver(Linter):
             """.format("|".join(warn_levels)),
             re.VERBOSE,
         )
-        self.regex = regex
-
-    multiline = False
-    line_col_base = (1, 1)
-    tempfile_suffix = 'jl'
-    error_stream = util.STREAM_BOTH
-    selectors = {}
-    word_re = None
-    defaults = {
-        'show_info_warnings': False,
-        'server_address': 'localhost',
-        'server_port': 2222,
-        'automatically_start_server': True
-    }
-    inline_settings = None
-    inline_overrides = None
-    comment_re = None
-
-    proc = None
 
     def run(self, cmd, code):
-        """Override the run function. Returns a string containing the julia lintserver's output."""
-        self.set_regex()
-
-        settings = self.get_merged_settings()
-        address = settings['server_address']
-        port = settings['server_port']
-        autostart = settings['automatically_start_server']
-
-        output = "An unknown error has occured when trying to connect to server."
-
-        f = open_tmpfile(self.filename, self.get_tempfile_suffix(), code)
-        try:
-            persist.debug("Calling sever({}, {}) with file".format(address, port))
-            output = call_server(f.name, address, port)
-        except Exception as e:
-            persist.debug("Calling sever failed: {}".format(e))
-            if self.proc is not None:
-                if self.proc.poll() is not None:
-                    raise subprocess.SubprocessError(self.proc.returncode())
-                else:
-                    output = "Local Julia lintserver was started."
-            elif autostart:
-                persist.printf("Launching julia lintserver on localhost port {}".format(port))
-
-                self.proc = launch_local_server(port)
-                address = 'localhost'
-
-                persist.printf(
-                    "julia lintserver starting up, server will be operational in about 30 seconds".format(self.proc.pid)
-                )
-                try:
-                    # Let julia launch
-                    time.sleep(5)
-                    # Run once with high timeout to make julia compile all appropriate function
-                    call_server(f.name, address, port, timeout=60)
-                    time.sleep(5)
-                    # Lint file
-                    output = call_server(f.name, address, port)
-                except:
-                    persist.debug("Local Julia lintserver failed to start properly.")
-                    output = "Local Julia lintserver failed to start properly."
-            else:
-                persist.debug("Failed to connect to julia lintserver. automatically_start_server is currently false.")
-                output = "Failed to connect to julia lintserver. automatically_start_server is currently false."
-        finally:
-            f.close()
-
-        return output
+        """Override the run function. Returns a string containing the output."""
+        return self.server.lint(self.filename, code)
