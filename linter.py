@@ -178,9 +178,9 @@ class JuliaLintServer(Linter):
             settings['timeout'],
         )
 
-        warn_levels = ['WARN']
+        warn_levels = ['W\d\d\d']
         if settings['show_info_warnings']:
-            warn_levels.append('INFO')
+            warn_levels.append('I\d\d\d')
 
         # Set the regex based upon whether or not show_info_warnings is set
         cls.regex = re.compile(
@@ -191,7 +191,7 @@ class JuliaLintServer(Linter):
             \s+
             (?P<message>
                 (?:
-                    (?P<error>ERROR|FATAL)
+                    (?P<error>E\d\d\d)
                     |
                     (?P<warning>{})
                 )
