@@ -187,8 +187,6 @@ class JuliaLintServer(Linter):
             r"""
             ^(?P<filename>.+?\.jl):(?P<line>\d+)
             \s+
-            \[(?P<near>.*?)\s*\]
-            \s+
             (?P<message>
                 (?:
                     (?P<error>E\d\d\d)
@@ -196,6 +194,10 @@ class JuliaLintServer(Linter):
                     (?P<warning>{})
                 )
                 \s+
+                (?:
+                    (?P<near>.*?):\s
+                )
+                \s*
                 .*?
             )
             \s*$
