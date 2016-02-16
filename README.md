@@ -5,7 +5,7 @@ SublimeLinter-contrib-julialintserver
 
 This linter plugin for [SublimeLinter][docs] provides an interface to [`Lint.jl`](https://github.com/tonyhffong/Lint.jl) `lintserver`. It will be used with files that have the “julia” syntax.
 
-This plugin will launch and maintain a juila daemon subprocess running `Lint.jl` `lintserver` to avoid recompiling `Lint.jl`.
+This plugin will launch and maintain a juila daemon subprocess running `Lint.jl` `lintserver` to avoid recompiling `Lint.jl` on every invocation.
 When you exit sublime text the subprocess will kill itself.
 The first time you lint the lintserver will have to compile and start up which usually takes about 30 seconds.
 
