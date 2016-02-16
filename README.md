@@ -5,29 +5,29 @@ SublimeLinter-contrib-julialintserver
 
 This linter plugin for [SublimeLinter][docs] provides an interface to [`Lint.jl`](https://github.com/tonyhffong/Lint.jl) `lintserver`. It will be used with files that have the “julia” syntax.
 
+This plugin will launch and maintain a juila daemon subprocess running `Lint.jl` `lintserver` to avoid recompiling `Lint.jl`.
+When you exit sublime text the subprocess will kill itself.
+The first time you lint the lintserver will have to compile and start up which usually takes about 30 seconds.
+
+
 ## Installation
 SublimeLinter 3 must be installed in order to use this plugin. If SublimeLinter 3 is not installed, please follow the instructions [here][installation].
 
+
 ### Linter installation
-In order for this plugin to be functional you must have a `Julia Lintserver` running. To set one up locally do the following:
+In order for this plugin to be functional you must have a `Lint.jl` installed. To set it up do the following:
 
 1. Have [`Julia`](http://julialang.org/) installed.
 
 1. Add [`Lint`](https://github.com/tonyhffong/Lint.jl) to `Julia`
-   ```Julia
-   Pkg.add( "Lint" )
-   ```
+    ```Julia
+    Pkg.add("Lint")
+    ```
 
-1. ~~Launch and keep running a `lintsever`.  This plugin's default port is `2222`.~~
-The plugin will automatically launch a julia lintserver.
+**Note:** The first lint will take ~30 seconds because julia has to compile the `Lint.jl` `lintserver`.
 
-**Note:**  The first lint will take ~30 seconds because the server has to compile the lint methods.
+**Note:** This plugin requires `Lint.jl` version `0.2.1` or later.
 
-**Note:** This plugin requires `Julia Lint` version `0.0.0` or later.
-
-### Linter configuration
-
-This plugin only works when I has access to a running `Julia Lintserver`.
 
 ### Plugin installation
 Please use [Package Control][pc] to install the linter plugin. This will ensure that the plugin will be updated when new versions are available. If you want to install from source so you can modify the source code, you probably know what you are doing so we won’t cover that here.
@@ -44,9 +44,7 @@ For general information on how SublimeLinter works with settings, please see [Se
 |Setting|Description|Default|
 |:------|:----------|:------------:|
 |show_info_warnings|Show INFO Warnings.|false
-|automatically_start_server|Launch lintserver on server_port.|true
 |server_port|Server Port.|2222
-|server_address|Server Address.|"localhost"
 
 ## Contributing
 If you would like to contribute enhancements or fixes, please do the following:
