@@ -14,6 +14,7 @@ import subprocess
 import os
 import re
 import socket
+import sublime
 
 from time import sleep
 from SublimeLinter.lint import Linter, util, persist
@@ -80,8 +81,15 @@ class JuliaLintServerDaemon(object):
         if self.proc is not None:
             return
 
+        server_script = sublime.load_resource(
+            "Packages/SublimeLinter-contrib-julialintserver/bin/julia-lint-server"
+        )
+
+        # TODO: make path to python3 configurable
         cmd = [
-            os.path.join(PKG_DIR, 'bin', 'julia-lint-server'),
+            "python3",
+            "-c",
+            server_script,
             str(self.port),
         ]
 
