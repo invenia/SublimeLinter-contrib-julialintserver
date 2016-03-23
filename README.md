@@ -13,11 +13,13 @@ The first time you lint the lintserver will have to compile and start up which u
 ## Installation
 SublimeLinter 3 must be installed in order to use this plugin. If SublimeLinter 3 is not installed, please follow the instructions [here][installation].
 
+[Python3](https://www.python.org/download) must be installed to run and maintain the daemon subprocess. Make sure `python3` is included in your PATH.
+
 
 ### Linter installation
 In order for this plugin to be functional you must have a `Lint.jl` installed. To set it up do the following:
 
-1. Have [`Julia`](http://julialang.org/) installed.
+1. Install [`Julia`](http://julialang.org/). Make sure `julia` is included in your PATH.
 
 1. Add [`Lint`](https://github.com/tonyhffong/Lint.jl) to `Julia`
     ```Julia
