@@ -27,7 +27,8 @@ class JuliaLintServerDaemon(object):
 
     __instance = None
 
-    def __new__(cls, address, port, auto_start=True, timeout=60):
+    def __new__(cls, address, port, auto_start=True, timeout=60,
+                python3="python3", julia="julia"):
         """Constructor."""
         if JuliaLintServerDaemon.__instance is None:
             JuliaLintServerDaemon.__instance = object.__new__(cls)
@@ -37,6 +38,8 @@ class JuliaLintServerDaemon(object):
         JuliaLintServerDaemon.__instance.port = port
         JuliaLintServerDaemon.__instance.auto_start = auto_start
         JuliaLintServerDaemon.__instance.timeout = timeout
+        JuliaLintServerDaemon.__instance.python3 = python3
+        JuliaLintServerDaemon.__instance.julia = julia
 
         return JuliaLintServerDaemon.__instance
 
@@ -81,16 +84,18 @@ class JuliaLintServerDaemon(object):
         if self.proc is not None:
             return
 
-        server_script = sublime.load_resource(
-            "Packages/SublimeLinter-contrib-julialintserver/bin/julia-lint-server"
+        server_script = os.path.join(
+            sublime.packages_path(), "SublimeLinter-contrib-julialintserver",
+            "bin", "julia-lint-server"
         )
 
-        # TODO: make path to python3 configurable
         cmd = [
-            "python3",
-            "-c",
+            self.python3,
             server_script,
+            "--port",
             str(self.port),
+            "--julia",
+            self.julia
         ]
 
         # Note: We'll spawn a intermediate subprocess which will
@@ -163,6 +168,8 @@ class JuliaLintServer(Linter):
         'server_port': 2222,
         'automatically_start_server': True,
         'timeout': 30,
+        "path_to_python3": "python3",
+        "path_to_julia": "julia"
     }
     inline_settings = None
     inline_overrides = None
@@ -184,6 +191,8 @@ class JuliaLintServer(Linter):
             settings['server_port'],
             settings['automatically_start_server'],
             settings['timeout'],
+            settings['path_to_python3'],
+            settings['path_to_julia']
         )
 
         warn_levels = ['W\d\d\d']
